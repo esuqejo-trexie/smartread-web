@@ -1,0 +1,3 @@
+# Settings for Firebase App Hosting
+runCommand: npm run build
+outputDirectory: .next
