@@ -175,36 +175,79 @@ export default function ClassDetailsPage() {
 
   return (
     <>
-      <div className="space-y-8">
+      <div className="pt-6 pb-2 space-y-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">{classData?.name}</h1>
-            <p className="text-gray-500 text-sm">
-              {learners.length} Learner
-              {learners.length !== 1 && "s"}
-            </p>
+        <div className="px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+              {classData?.name}
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs font-bold">
+                {learners.length}
+              </span>
+              <p className="text-gray-400 text-sm font-medium">
+                {learners.length === 1
+                  ? "Learner enrolled"
+                  : "Learners enrolled"}
+              </p>
+              {classData?.status === "Archived" && (
+                <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">
+                  Archived
+                </span>
+              )}
+            </div>
           </div>
 
           <button
             disabled={classData?.status === "Archived"}
             onClick={() => setOpenAddLearner(true)}
-            className={`px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition
-              ${
-                classData?.status === "Archived"
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]"
-              }`}
+            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all duration-150
+        ${
+          classData?.status === "Archived"
+            ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+            : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md active:scale-[0.97]"
+        }`}
           >
-            + Add Learner
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-4 h-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Add Learner
           </button>
         </div>
 
+        {/* Invite Message Toast */}
         {inviteMessage && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-5 py-3 rounded-xl text-sm font-medium shadow-sm">
-            {inviteMessage}
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex items-start gap-3 bg-green-50 border border-green-200 text-green-800 px-5 py-3.5 rounded-xl text-sm font-medium shadow-sm">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-5 h-5 text-green-500 shrink-0 mt-0.5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              {inviteMessage}
+            </div>
           </div>
         )}
+
+        {/* Divider */}
+        <div className="border-t border-gray-100" />
 
         {/* Learner Table */}
         <ViewTable

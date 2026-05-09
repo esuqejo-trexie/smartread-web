@@ -26,6 +26,7 @@ import {
   LineChart,
   Line,
   CartesianGrid,
+  Legend,
 } from "recharts";
 
 function IconUsers(props: React.SVGProps<SVGSVGElement>) {
@@ -96,7 +97,6 @@ export default function TeacherDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [classList, setClassList] = useState<any[]>([]);
   const [allLearners, setAllLearners] = useState<any[]>([]);
-  const [classData, setClassData] = useState<any[]>([]);
   const [sessionData, setSessionData] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState("ALL");
 
@@ -118,7 +118,6 @@ export default function TeacherDashboardPage() {
 
     const unsubscribe = onSnapshot(classesRef, async (classesSnap) => {
       let learnersAll: any[] = [];
-      let learnersWithSessions: any[] = [];
       let allSessions: any[] = [];
       let classes: any[] = [];
 
@@ -158,104 +157,155 @@ export default function TeacherDashboardPage() {
           );
           const sessionsSnap = await new Promise<any>((resolve) =>
             onSnapshot(
-              query(sessionsRef, orderBy("createdAt", "desc"), limit(5)),
+              query(sessionsRef, orderBy("createdAt", "desc"), limit(50)),
               resolve,
             ),
           );
 
           const sessions = sessionsSnap.docs.map((d: any) => d.data());
-          if (sessions.length > 0) {
-            learnersWithSessions.push({
+          sessions.forEach((s: any) => {
+            allSessions.push({
               classId,
-              profile: sessions[0].profile,
-              finalScore: sessions[0].finalScore ?? 0,
+              learnerId: learnerDoc.id,
+              learnerName: learnerDoc.data().name,
+              createdAt: s.createdAt?.toDate?.() || new Date(),
+              accuracyScore: s.accuracyScore || s.pronunciationScore || 0,
+              completenessScore: s.completenessScore || 0,
+              fluencyScore: s.fluencyScore || 0,
+              finalScore: s.finalScore ?? 0,
             });
-            sessions.forEach((s: any) => {
-              allSessions.push({
-                classId,
-                createdAt: s.createdAt?.toDate?.() || new Date(),
-                score: s.finalScore ?? 0,
-                pronunciation: s.pronunciationScore || 0,
-                fluency: s.fluencyScore || 0,
-              });
-            });
-          }
+          });
         }
       }
 
       setClassList(classes);
       setAllLearners(learnersAll);
-      setClassData(learnersWithSessions);
       setSessionData(allSessions);
     });
 
     return () => unsubscribe();
   }, [teacher]);
 
-  const filteredAll =
-    selectedClass === "ALL"
-      ? allLearners
-      : allLearners.filter((l) => l.classId === selectedClass);
   const filteredSessions =
     selectedClass === "ALL"
       ? sessionData
       : sessionData.filter((s) => s.classId === selectedClass);
-  const filteredActive =
+
+  const filteredAll =
     selectedClass === "ALL"
-      ? classData
-      : classData.filter((l) => l.classId === selectedClass);
+      ? allLearners
+      : allLearners.filter((l) => l.classId === selectedClass);
+
+  // Compute aggregated data for graphs (grouped by date)
+  const aggregatedData = useMemo(() => {
+    // Group sessions by date
+    const dateMap: Record<
+      string,
+      {
+        accuracySum: number;
+        completenessSum: number;
+        fluencySum: number;
+        count: number;
+        date: Date;
+      }
+    > = {};
+
+    filteredSessions.forEach((s) => {
+      const dateKey = s.createdAt.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+      const fullDate = s.createdAt;
+
+      if (!dateMap[dateKey]) {
+        dateMap[dateKey] = {
+          accuracySum: 0,
+          completenessSum: 0,
+          fluencySum: 0,
+          count: 0,
+          date: fullDate,
+        };
+      }
+
+      dateMap[dateKey].accuracySum += s.accuracyScore;
+      dateMap[dateKey].completenessSum += s.completenessScore;
+      dateMap[dateKey].fluencySum += s.fluencyScore;
+      dateMap[dateKey].count += 1;
+    });
+
+    // Convert to array and calculate averages
+    const data = Object.entries(dateMap)
+      .map(([date, values]) => ({
+        date,
+        accuracy: parseFloat((values.accuracySum / values.count).toFixed(1)),
+        completeness: parseFloat(
+          (values.completenessSum / values.count).toFixed(1),
+        ),
+        fluency: parseFloat((values.fluencySum / values.count).toFixed(1)),
+        sessionCount: values.count,
+        timestamp: values.date.getTime(),
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-14); // Last 14 days
+
+    return data;
+  }, [filteredSessions]);
 
   const stats = useMemo(() => {
+    const activeLearners = new Set(filteredSessions.map((s) => s.learnerId))
+      .size;
+    const invited = filteredAll.filter((l) => l.status === "Invited").length;
+
+    // Calculate current averages (last 7 days or all if less)
+    const recentData = aggregatedData.slice(-7);
+    const avgAccuracy =
+      recentData.length > 0
+        ? parseFloat(
+            (
+              recentData.reduce((sum, d) => sum + d.accuracy, 0) /
+              recentData.length
+            ).toFixed(1),
+          )
+        : 0;
+    const avgCompleteness =
+      recentData.length > 0
+        ? parseFloat(
+            (
+              recentData.reduce((sum, d) => sum + d.completeness, 0) /
+              recentData.length
+            ).toFixed(1),
+          )
+        : 0;
+    const avgFluency =
+      recentData.length > 0
+        ? parseFloat(
+            (
+              recentData.reduce((sum, d) => sum + d.fluency, 0) /
+              recentData.length
+            ).toFixed(1),
+          )
+        : 0;
+
+    // Profile distribution
     const distribution = [
       { name: "Emerging - Spark", value: 0, color: "#fbbf24" },
       { name: "Developing - Ember", value: 0, color: "#f97316" },
     ];
-    filteredActive.forEach((d) => {
-      if (d.profile === "Emerging") distribution[0].value++;
-      else if (d.profile === "Developing") distribution[1].value++;
+    filteredAll.forEach((learner) => {
+      if (learner.profile === "Emerging") distribution[0].value++;
+      else if (learner.profile === "Developing") distribution[1].value++;
     });
-
-    const trendMap: Record<string, number[]> = {};
-    filteredSessions.forEach((s) => {
-      const date = s.createdAt.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      });
-      if (!trendMap[date]) trendMap[date] = [];
-      trendMap[date].push(s.score);
-    });
-    const trend = Object.entries(trendMap)
-      .map(([date, scores]) => ({
-        label: date,
-        score: parseFloat(
-          (scores.reduce((sum, v) => sum + v, 0) / scores.length).toFixed(1),
-        ),
-      }))
-      .slice(-7);
-
-    const avgPron = parseFloat(
-      (
-        filteredSessions.reduce((sum, s) => sum + s.pronunciation, 0) /
-        (filteredSessions.length || 1)
-      ).toFixed(1),
-    );
-    const avgFlu = parseFloat(
-      (
-        filteredSessions.reduce((sum, s) => sum + s.fluency, 0) /
-        (filteredSessions.length || 1)
-      ).toFixed(1),
-    );
 
     return {
       totalClasses: classList.length,
-      invited: filteredAll.filter((l) => l.status === "Invited").length,
-      active: filteredActive.length,
+      activeLearners,
+      invited,
+      avgAccuracy,
+      avgCompleteness,
+      avgFluency,
       distribution,
-      trend,
-      avgPron,
-      avgFlu,
     };
-  }, [filteredAll, filteredSessions, filteredActive, classList]);
+  }, [filteredSessions, filteredAll, classList, aggregatedData]);
 
   if (loading) {
     return (
@@ -298,7 +348,7 @@ export default function TeacherDashboardPage() {
 
       <div className="p-6 space-y-5">
         {/* KPI */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <KPICard
             icon={<IconClasses className="w-5 h-5 text-[#ff6e61]" />}
             label="Total Classes"
@@ -308,7 +358,7 @@ export default function TeacherDashboardPage() {
           <KPICard
             icon={<IconUsers className="w-5 h-5 text-emerald-500" />}
             label="Active Learners"
-            value={stats.active}
+            value={stats.activeLearners}
             bg="#10b981"
           />
           <KPICard
@@ -317,99 +367,22 @@ export default function TeacherDashboardPage() {
             value={stats.invited}
             bg="#f59e0b"
           />
+          <KPICard
+            icon={<IconUsers className="w-5 h-5 text-blue-500" />}
+            label="Total Learners"
+            value={filteredAll.length}
+            bg="#3b82f6"
+          />
         </div>
 
-        {/* Charts row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard
-            title="Reading Profile Distribution"
-            description="Learners distributed across reading level tiers"
-          >
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart
-                data={stats.distribution}
-                barSize={32}
-                margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#f1f5f9"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fill: "#64748b", fontSize: 12, fontWeight: 500 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: "#94a3b8", fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                  allowDecimals={false}
-                />
-                <Tooltip
-                  content={<CustomTooltip />}
-                  cursor={{ fill: "#f8fafc" }}
-                />
-                <Bar dataKey="value" name="Learners" radius={[6, 6, 0, 0]}>
-                  {stats.distribution.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard
-            title="Reading Quality"
-            description="Average pronunciation vs fluency scores"
-          >
-            <div className="flex items-center h-[220px]">
-              <ResponsiveContainer width="60%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: "Pronunciation", value: stats.avgPron },
-                      { name: "Fluency", value: stats.avgFlu },
-                    ]}
-                    dataKey="value"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={58}
-                    outerRadius={88}
-                    paddingAngle={4}
-                  >
-                    <Cell fill="#ff6e61" />
-                    <Cell fill="#10b981" />
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex flex-col gap-5 flex-1">
-                <ScoreLegend
-                  color="#ff6e61"
-                  label="Pronunciation"
-                  value={stats.avgPron}
-                />
-                <ScoreLegend
-                  color="#10b981"
-                  label="Fluency"
-                  value={stats.avgFlu}
-                />
-              </div>
-            </div>
-          </ChartCard>
-        </div>
-
-        {/* Trend */}
+        {/* Accuracy Trend Graph */}
         <ChartCard
-          title="Class Average Reading Progress"
-          description="7-day rolling average score across all learner sessions"
+          title="Accuracy Score Trend"
+          description="Class average accuracy score over time"
         >
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={250}>
             <LineChart
-              data={stats.trend}
+              data={aggregatedData}
               margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
             >
               <CartesianGrid
@@ -418,25 +391,111 @@ export default function TeacherDashboardPage() {
                 vertical={false}
               />
               <XAxis
-                dataKey="label"
+                dataKey="date"
                 tick={{ fill: "#64748b", fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
+                domain={[0, 100]}
                 tick={{ fill: "#94a3b8", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip content={<CustomTooltip />} />
+              <Legend />
               <Line
                 type="monotone"
-                dataKey="score"
-                name="Avg Score"
-                stroke="#ff6e61"
+                dataKey="accuracy"
+                name="Accuracy Score"
+                stroke="#10b981"
                 strokeWidth={2.5}
-                dot={{ r: 4, fill: "#ff6e61", strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: "#ff6e61", strokeWidth: 0 }}
+                dot={{ r: 4, fill: "#10b981", strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: "#10b981", strokeWidth: 0 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* Completeness Trend Graph */}
+        <ChartCard
+          title="Completeness Score Trend"
+          description="Class average completeness score over time"
+        >
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart
+              data={aggregatedData}
+              margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#f1f5f9"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="date"
+                tick={{ fill: "#64748b", fontSize: 12 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fill: "#94a3b8", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="completeness"
+                name="Completeness Score"
+                stroke="#f59e0b"
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: "#f59e0b", strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: "#f59e0b", strokeWidth: 0 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* Fluency Trend Graph */}
+        <ChartCard
+          title="Fluency Score Trend"
+          description="Class average fluency score over time"
+        >
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart
+              data={aggregatedData}
+              margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#f1f5f9"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="date"
+                tick={{ fill: "#64748b", fontSize: 12 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fill: "#94a3b8", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="fluency"
+                name="Fluency Score"
+                stroke="#8b5cf6"
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: "#8b5cf6", strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: "#8b5cf6", strokeWidth: 0 }}
               />
             </LineChart>
           </ResponsiveContainer>

@@ -10,7 +10,13 @@ import { auth, db } from "@/lib/firebase";
 // ── Icons ────────────────────────────────────────────────────────────────────
 function IconDashboard(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      {...props}
+    >
       <rect x="3" y="3" width="7" height="9" rx="1" />
       <rect x="14" y="3" width="7" height="5" rx="1" />
       <rect x="14" y="12" width="7" height="9" rx="1" />
@@ -20,7 +26,13 @@ function IconDashboard(props: React.SVGProps<SVGSVGElement>) {
 }
 function IconClasses(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      {...props}
+    >
       <rect x="3" y="3" width="7" height="7" rx="1" />
       <rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="3" y="14" width="7" height="7" rx="1" />
@@ -30,14 +42,26 @@ function IconClasses(props: React.SVGProps<SVGSVGElement>) {
 }
 function IconChevron(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      {...props}
+    >
       <polyline points="9 18 15 12 9 6" />
     </svg>
   );
 }
 function IconMenu(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      {...props}
+    >
       <line x1="3" y1="6" x2="21" y2="6" />
       <line x1="3" y1="12" x2="21" y2="12" />
       <line x1="3" y1="18" x2="21" y2="18" />
@@ -52,7 +76,11 @@ const navItems = [
 
 type TeacherData = { name: string; email: string; role: string };
 
-export default function TeacherLayout({ children }: { children: React.ReactNode }) {
+export default function TeacherLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -62,7 +90,10 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) { router.push("/login"); return; }
+      if (!user) {
+        router.push("/login");
+        return;
+      }
 
       const snap = await getDoc(doc(db, "users", user.uid));
       if (!snap.exists() || snap.data().role !== "teacher") {
@@ -91,7 +122,12 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   }
 
   const initials = teacher?.name
-    ? teacher.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+    ? teacher.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
     : "T";
 
   const SidebarContent = () => (
@@ -101,15 +137,21 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
         <div className="w-8 h-8 rounded-lg bg-[#ff6e61] flex items-center justify-center shadow-sm flex-shrink-0">
           <span className="text-white font-bold text-xs">SR</span>
         </div>
-        <span className="font-bold text-slate-800 text-base tracking-tight">SmartRead</span>
+        <span className="font-bold text-slate-800 text-base tracking-tight">
+          SmartRead
+        </span>
       </div>
 
       {/* Nav */}
       <nav className="flex flex-col gap-1 flex-1 px-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-300 font-semibold px-2 mb-2">Menu</p>
+        <p className="text-[10px] uppercase tracking-widest text-slate-300 font-semibold px-2 mb-2">
+          Menu
+        </p>
         {navItems.map(({ label, href, icon: Icon }) => {
           const isActive =
-            href === "/teacher" ? pathname === "/teacher" : pathname.startsWith(href);
+            href === "/teacher"
+              ? pathname === "/teacher"
+              : pathname.startsWith(href);
           return (
             <Link
               key={href}
@@ -134,15 +176,21 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           href="/teacher/profile"
           onClick={() => setMobileOpen(false)}
           className={`flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-50 transition-colors group border border-transparent hover:border-slate-100 ${
-            pathname === "/teacher/profile" ? "bg-[#ff6e61]/10 border-[#ff6e61]/10" : ""
+            pathname === "/teacher/profile"
+              ? "bg-[#ff6e61]/10 border-[#ff6e61]/10"
+              : ""
           }`}
         >
           <div className="w-8 h-8 rounded-full bg-[#ff6e61] text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-sm">
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-800 truncate leading-tight">{teacher?.name}</p>
-            <p className="text-[11px] text-slate-400 truncate">{teacher?.email}</p>
+            <p className="text-sm font-semibold text-slate-800 truncate leading-tight">
+              {teacher?.name}
+            </p>
+            <p className="text-[11px] text-slate-400 truncate">
+              {teacher?.email}
+            </p>
           </div>
           <IconChevron className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#ff6e61] flex-shrink-0 transition-colors" />
         </Link>
@@ -160,15 +208,18 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
       {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
           <aside className="absolute left-0 top-0 h-full w-64 bg-white shadow-xl flex flex-col py-8 z-50">
             <SidebarContent />
           </aside>
         </div>
       )}
 
-      {/* Main */}
-      <div className="flex-1 md:ml-60 flex flex-col min-h-screen">
+      {/* Main content area - FIXED: prevents horizontal scrolling */}
+      <div className="flex-1 md:ml-60 flex flex-col min-h-screen overflow-hidden">
         {/* Mobile top bar */}
         <div className="md:hidden bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
           <button
@@ -186,7 +237,10 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           <div className="w-9" />
         </div>
 
-        <main className="flex-1">{children}</main>
+        {/* Main content - FIXED: handles vertical scrolling only, hides horizontal overflow */}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+          {children}
+        </main>
       </div>
     </div>
   );
